@@ -207,3 +207,4 @@ cache
 
 # Ignore configuration files
 aios/config/config.yaml
+/home/sysadm/Raihan/AIOS-LSFS_local/aios/config/config.yaml

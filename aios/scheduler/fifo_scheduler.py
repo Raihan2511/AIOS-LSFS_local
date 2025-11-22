@@ -169,7 +169,8 @@ class FIFOScheduler(BaseScheduler):
                 llm_syscall = self.get_llm_syscall()
                 self._execute_syscall(llm_syscall, self.llm.execute_llm_syscall, "LLM")
             except Empty:
-                pass
+                # pass
+                time.sleep(0.5)
 
     def process_memory_requests(self) -> None:
         """
@@ -194,7 +195,8 @@ class FIFOScheduler(BaseScheduler):
                     "Memory"
                 )
             except Empty:
-                pass
+                # pass
+                time.sleep(0.5)
 
     def process_storage_requests(self) -> None:
         """
@@ -220,7 +222,8 @@ class FIFOScheduler(BaseScheduler):
                     "Storage"
                 )
             except Empty:
-                pass
+                # pass
+                time.sleep(0.5)
 
     def process_tool_requests(self) -> None:
         """
