@@ -1,3 +1,4 @@
+# aios/syscall/storage.py
 from aios.syscall.syscall import Syscall
 
 class StorageSyscall(Syscall):
@@ -123,6 +124,26 @@ storage_syscalls = [
             },
         },
     },
+    # --- ADD THIS NEW TOOL HERE ---
+    {
+        "type": "function",
+        "function": {
+            "name": "list_files",
+            "description": "list all files and directories in a specific path",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dir_path": {
+                        "type": "string",
+                        "description": "path of the directory to list",
+                        "default": "." 
+                    }
+                },
+                "required": ["dir_path"],
+            },
+        },
+    },
+# -----------------------------------------
     {
         "type": "function",
         "function": {

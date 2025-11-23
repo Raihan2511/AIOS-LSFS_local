@@ -1,3 +1,4 @@
+# aios/syscall/syscall.py
 import time
 import json
 from typing import Dict, List, Any, Optional
@@ -264,12 +265,25 @@ class SyscallExecutor:
         query.tools = storage_syscalls
         
         
-        parser_response = self.execute_llm_syscall(agent_name, query)["response"]
+        # parser_response = self.execute_llm_syscall(agent_name, query)["response"]
+        # file_operations = parser_response.tool_calls
+        
+        # # breakpoint()
+        
+        # operation_summaries = []
+        # ...
+        result = self.execute_llm_syscall(agent_name, query)
+        parser_response = result["response"]
+        
+        # --- SAFETY FIX: Check if tool_calls exists ---
+        if not parser_response or not parser_response.tool_calls:
+            # If the AI just talked (e.g. "I cannot do that"), return the text directly
+            return parser_response.response_message if parser_response else "Error: The AI could not determine which file operation to perform."
+
         file_operations = parser_response.tool_calls
         
-        # breakpoint()
-        
         operation_summaries = []
+        # ...
         
         # Execute each file operation
         for operation in file_operations:
