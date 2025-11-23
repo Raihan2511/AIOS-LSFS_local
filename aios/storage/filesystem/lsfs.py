@@ -520,6 +520,7 @@ import threading
 import requests
 from .vector_db import ChromaDB
 import logging
+import stat
 
 logging.getLogger('watchdog').setLevel(logging.ERROR)
 
@@ -704,21 +705,46 @@ class LSFS:
     def address_request(self, agent_request):
         collection_name = agent_request.agent_name
         operation_type = agent_request.query.operation_type
+        params = agent_request.query.params  # Shorten for readability
         
-        # --- FIX 4: Centralized Path Resolution ---
+        # --- 1. Centralized Path Resolution ---
         raw_path = None
-        if operation_type in ["create_file", "write", "rollback", "share", "delete_file", "read_file"]:
-            raw_path = agent_request.query.params.get("file_path") or agent_request.query.params.get("file_name")
-        elif operation_type in ["create_dir", "delete_dir", "list_files"]:
-            raw_path = agent_request.query.params.get("dir_path", ".")
+        
+        # Operations that target a specific file
+        file_ops = [
+            "create_file", "write", "rollback", "share", "delete_file", 
+            "read_file", "run_python", "restrict_file", "temp_lock_file"
+        ]
+        
+        # Operations that target a directory
+        dir_ops = ["create_dir", "delete_dir", "list_files"]
+
+        if operation_type in file_ops:
+            raw_path = params.get("file_path") or params.get("file_name")
+        elif operation_type in dir_ops:
+            raw_path = params.get("dir_path", ".")
             
+        # --- 2. Special Cases (Multi-path or No-path) ---
+        # Move requires two paths, so we resolve them separately here
+        if operation_type == "move_file":
+            src = self._resolve_path(params.get("src_path"))
+            dest = self._resolve_path(params.get("dest_path"))
+            return self.sto_move_file(src, dest)
+            
+        # Read URL takes a web link, not a file path
+        if operation_type == "read_url":
+            return self.sto_read_url(params.get("url"))
+
+        # --- 3. Resolve Single Target Path ---
+        # This applies to all standard file_ops and dir_ops
         target_path = self._resolve_path(raw_path)
 
         try:
             if operation_type == "mount":
-                root = agent_request.query.params.get("root", self.root_dir)
+                root = params.get("root", self.root_dir)
                 return self.sto_mount(collection_name, root)
             
+            # --- File System Tools ---
             elif operation_type == "list_files":
                 return self.sto_list_files(target_path)
             
@@ -732,37 +758,52 @@ class LSFS:
                 return self.sto_create_directory(target_path, collection_name)
                 
             elif operation_type == "write":
-                content = agent_request.query.params.get("content", "")
+                content = params.get("content", "")
                 return self.sto_write(target_path, content, collection_name)
 
-            elif operation_type == "retrieve":
-                query_text = agent_request.query.params.get("query_text", None)
-                k = agent_request.query.params.get("k", "3")
-                keywords = agent_request.query.params.get("keywords", None)
-                
-                results = self.sto_retrieve(collection_name, query_text, k, keywords)
-                return json.dumps(results, indent=2) if results else "No results found."
-                
-            elif operation_type == "rollback":
-                n = agent_request.query.params.get("n", "1")
-                return self.sto_rollback(target_path, int(n))
-
-            elif operation_type == "share":
-                return str(self.sto_share(target_path, collection_name))
-            
             elif operation_type == "delete_file":
                 if os.path.exists(target_path):
                     os.remove(target_path)
                     return f"Deleted file: {target_path}"
                 return "File not found."
+
+            # --- Memory & History Tools ---
+            elif operation_type == "retrieve":
+                query_text = params.get("query_text", None)
+                k = params.get("k", "3")
+                keywords = params.get("keywords", None)
+                
+                results = self.sto_retrieve(collection_name, query_text, k, keywords)
+                return json.dumps(results, indent=2) if results else "No results found."
+                
+            elif operation_type == "rollback":
+                n = params.get("n", "1")
+                # Support time-based rollback if provided
+                time_arg = params.get("time", None) 
+                return self.sto_rollback(target_path, int(n), time_arg)
+
+            elif operation_type == "share":
+                return str(self.sto_share(target_path, collection_name))
+            
+            # --- Modern Agent Tools ---
+            elif operation_type == "run_python":
+                return self.sto_run_python(target_path)
+
+            # --- Security Tools ---
+            elif operation_type == "restrict_file":
+                mode = params.get("mode")
+                return self.sto_restrict_file(target_path, mode)
+
+            elif operation_type == "temp_lock_file":
+                minutes = params.get("minutes")
+                return self.sto_temp_lock_file(target_path, int(minutes))
         
             else:
                 return f"Operation type: {operation_type} not supported"
         
         except Exception as e:
             return f"Error handling file operation: {str(e)}"
-
-    # --- FIX 5: Tool Implementations ---
+        
     def sto_list_files(self, dir_path):
         try:
             if not os.path.exists(dir_path): return f"Directory not found: {dir_path}"
@@ -890,6 +931,37 @@ class LSFS:
 
         except Exception as e:
             return f"Error generating link: {str(e)}"
+        
+    def sto_temp_lock_file(self, file_path: str, minutes: int) -> str:
+        try:
+            if not os.path.exists(file_path):
+                return "Error: File not found."
+
+            # 1. LOCK: Set permissions to Read-Only (444)
+            # This blocks edits from AIOS *and* Linux Terminal
+            os.chmod(file_path, stat.S_IREAD | stat.S_IRGRP | stat.S_IROTH)
+            
+            # 2. TIMER: Define the unlock function
+            def _unlock_later():
+                time.sleep(int(minutes) * 60)  # Wait X minutes
+                try:
+                    # Restore Read+Write permissions (644)
+                    os.chmod(file_path, stat.S_IREAD | stat.S_IWRITE | stat.S_IRGRP | stat.S_IROTH)
+                    print(f"DEBUG: Auto-unlocked {file_path}")
+                except Exception as e:
+                    print(f"Error auto-unlocking: {e}")
+
+            # 3. BACKGROUND: Run the timer in a separate thread
+            # daemon=True means this thread won't stop the server from shutting down
+            t = threading.Thread(target=_unlock_later, daemon=True)
+            t.start()
+
+            return f"🔒 File LOCKED for {minutes} minutes. OS permissions set to Read-Only."
+
+        except PermissionError:
+            return "Error: Permission denied. Cannot change file attributes."
+        except Exception as e:
+            return f"Error locking file: {str(e)}"
 
     def sto_share(self, file_path: str, collection_name: str = None) -> dict:
         lock = self.get_file_lock(file_path)

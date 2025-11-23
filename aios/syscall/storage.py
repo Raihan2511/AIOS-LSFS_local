@@ -173,6 +173,21 @@ storage_syscalls = [
     {
         "type": "function",
         "function": {
+            "name": "temp_lock_file",
+            "description": "Lock a file (make it read-only) for a specific amount of time. It will automatically unlock afterwards.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": { "type": "string", "description": "path of the file" },
+                    "minutes": { "type": "integer", "description": "how many minutes to lock the file" }
+                },
+                "required": ["file_path", "minutes"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "share",
             "description": "generate a public shareable link for a file",
             "parameters": {
