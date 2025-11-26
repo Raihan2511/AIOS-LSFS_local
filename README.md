@@ -1,4 +1,4 @@
-# AIOS-LSFS
+<!-- # AIOS-LSFS
 This is the official code implementation of paper [From Commands to Prompts: LLM-based Semantic File System for AIOS](https://arxiv.org/pdf/2410.11843).
 
 ## 🏠 Architecture of LSFS
@@ -68,4 +68,143 @@ If you find this project useful, please cite our paper:
   year={2025},
   url={https://openreview.net/forum?id=2G021ZqUEZ}
 }
+``` -->
+
+# AIOS-LSFS_local – Ubuntu Setup Guide
+
+This README provides a step-by-step workflow to install, configure, and run **AIOS-LSFS_local** on Ubuntu.
+
+---
+
+## 1. Install Miniconda
+
+```bash
+cd ~
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
 ```
+
+Restart the terminal, then verify:
+
+```bash
+conda --version
+```
+
+---
+
+## 2. Create Conda Environment
+
+```bash
+conda create -n lsfs python=3.11 -y
+```
+
+---
+
+## 3. Clone the Repository
+
+Check if Git is installed:
+
+```bash
+git --version
+```
+
+If not:
+
+```bash
+sudo apt install git -y
+```
+
+Clone the project:
+
+```bash
+cd ~
+git clone https://github.com/Raihan2511/AIOS-LSFS_local
+cd AIOS-LSFS_local
+```
+
+Checkout your working branch:
+
+```bash
+git checkout my-new-branch
+```
+
+---
+
+## 4. Activate Environment & Install Dependencies
+
+```bash
+conda activate lsfs
+pip install -r requirements.txt
+pip install sentence-transformers
+```
+
+---
+
+## 5. Configure the Application
+
+Open:
+
+```
+aios/config/config.yaml
+```
+
+### Option A – Using API Key
+
+```yaml
+llm_provider: openai
+api_key: "your_api_key_here"
+```
+
+### Option B – Using Local Ollama Model
+
+1. Download Ollama: [https://ollama.com/download](https://ollama.com/download)
+2. Start server:
+
+```bash
+ollama serve
+```
+
+3. Pull a model:
+
+```bash
+ollama pull qwen2.5:7b
+```
+
+4. Update config.yaml:
+
+```yaml
+llm_provider: ollama
+model_name: "qwen2.5:7b"
+```
+
+---
+
+## 6. Start the Kernel
+
+Inside the project directory:
+
+```bash
+bash runtime/launch_kernel.sh
+```
+
+---
+
+## 7. Start the Terminal Interface
+
+Open a new terminal:
+
+```bash
+conda activate lsfs
+python Scripts/run_terminal.py
+```
+
+Inside the LSFS terminal, type:
+
+```
+help
+```
+
+---
+
+This completes the setup for AIOS-LSFS_local on Ubuntu.
+
