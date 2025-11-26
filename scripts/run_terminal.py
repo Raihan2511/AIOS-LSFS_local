@@ -279,46 +279,48 @@ class AIOSTerminal:
         return prompt_parts
 
     def display_help(self):
-        """Shows comprehensive available commands locally."""
-        
-        # --- Section 1: Local Commands ---
-        local_table = Table(show_header=True, header_style="bold magenta", title="🖥️  Local Terminal Commands")
-        local_table.add_column("Command", style="cyan")
-        local_table.add_column("Description", style="green")
-        
-        local_table.add_row("help", "Show this user manual")
-        local_table.add_row("exit", "Exit the terminal client")
-        local_table.add_row("ls / list files", "Instantly list files in the mounted directory")
-        local_table.add_row("list agents --online", "List available agents from the hub")
-        
-        self.console.print(local_table)
-        self.console.print("") # Spacing
+            """Shows comprehensive available commands locally."""
+            
+            # --- Section 1: Local Commands ---
+            local_table = Table(show_header=True, header_style="bold magenta", title="🖥️  Local Terminal Commands")
+            local_table.add_column("Command", style="cyan")
+            local_table.add_column("Description", style="green")
+            
+            local_table.add_row("help", "Show this user manual")
+            local_table.add_row("exit", "Exit the terminal client")
+            local_table.add_row("ls / list files", "Instantly list files in the mounted directory")
+            local_table.add_row("list agents --online", "List available agents from the hub")
+            
+            self.console.print(local_table)
+            self.console.print("") # Spacing
 
-        # --- Section 2: AI Natural Language Commands ---
-        ai_table = Table(show_header=True, header_style="bold yellow", title="🤖 AI Agent Capabilities (Natural Language)")
-        ai_table.add_column("Feature", style="cyan")
-        ai_table.add_column("Example Prompt", style="white")
-        ai_table.add_column("What it does", style="dim")
+            # --- Section 2: AI Natural Language Commands ---
+            ai_table = Table(show_header=True, header_style="bold yellow", title="🤖 AI Agent Capabilities (Natural Language)")
+            ai_table.add_column("Feature", style="cyan")
+            ai_table.add_column("Reliable Prompt Format", style="white")
+            ai_table.add_column("What it does", style="dim")
 
-        ai_table.add_row("Create File", "Create a python script named calc.py", "Creates empty file in root/")
-        ai_table.add_row("Write Content", "Write a fibonacci function into calc.py", "Writes text/code to file")
-        ai_table.add_row("Read/Analyze", "Read calc.py and explain the code", "Reads disk & summarizes")
-        ai_table.add_row("List (AI)", "List all files in the current folder", "AI-driven directory scan")
-        ai_table.add_row("Delete", "Delete the file calc.py", "Permanently removes file")
-        
-        # Modern Agent Features
-        # ai_table.add_section()
-        # ai_table.add_row("Run Code", "Run calc.py and show the output", "Executes python code locally")
-        # ai_table.add_row("Move/Rename", "Move calc.py to the /src folder", "Organizes files")
-        # ai_table.add_row("Read URL", "Read content from https://example.com", "Fetches web data")
-        
-        # Advanced Features
-        ai_table.add_section()
-        ai_table.add_row("Rollback", "Rollback calc.py to previous version", "Restores from Redis history")
-        ai_table.add_row("Share", "Generate a share link for calc.py", "Creates cloud/local link")
-        ai_table.add_row("Lock", "Lock calc.py for 5 minutes", "Restricts OS permissions")
+            # Core Features
+            ai_table.add_row("Code Gen", "Create a python script named calc.py that adds two numbers", "Creates & Writes in one step")
+            ai_table.add_row("Write Content", "Write a list of fruits into shopping.txt", "Writes text to file")
+            ai_table.add_row("Read/Analyze", "Read calc.py and explain the code", "Reads disk & summarizes")
+            ai_table.add_row("List (AI)", "List all files in the current folder", "AI-driven directory scan")
+            ai_table.add_row("Delete", "Delete the file calc.py", "Permanently removes file")
+            
+            # Modern Agent Features (Since you enabled them in LSFS)
+            # ai_table.add_section()
+            # ai_table.add_row("Run Code", "Run calc.py and show me the output", "Executes python code locally")
+            # ai_table.add_row("Move/Rename", "Move calc.py to the /src folder", "Organizes files")
+            # ai_table.add_row("Read URL", "Read content from https://example.com", "Fetches web data")
+            
+            # Security & History
+            ai_table.add_section()
+            ai_table.add_row("Rollback", "Rollback calc.py to previous version", "Restores from Redis history")
+            ai_table.add_row("Share", "Generate a share link for calc.py", "Creates cloud/local link")
+            # ai_table.add_row("Lock", "Lock calc.py for 5 minutes", "Restricts OS permissions")
 
-        self.console.print(ai_table)
+            self.console.print(ai_table)
+            self.console.print("[dim]Tip: For code generation, combine the creation and content in one sentence for best results.[/dim]")
 
     def handle_list_agents(self, args: str):
         """Handles agent listing locally."""
@@ -354,8 +356,27 @@ class AIOSTerminal:
                     self.console.print(f"[bold cyan]✅ Filesystem mounted at: {root_dir}[/]")
                     break
                 elif mount_choice.lower() == 'n':
-                    self.console.print("[yellow]Continuing without mounting filesystem...[/yellow]")
-                    break
+                    # --- CHANGED HERE: Ask for custom path ---
+                    self.console.print("[yellow]Please enter the absolute path you want to mount:[/yellow]")
+                    custom_path = self.session.prompt(self.get_prompt("Path: ")).strip()
+                    if custom_path:
+                        # Ensure the directory exists or try to create it
+                        if not os.path.exists(custom_path):
+                            try:
+                                os.makedirs(custom_path)
+                                self.console.print(f"[green]Created new directory: {custom_path}[/green]")
+                            except Exception as e:
+                                self.console.print(f"[red]Error creating directory: {e}[/red]")
+                                continue
+
+                        root_dir = custom_path  # Update global root_dir so 'ls' command works later
+                        mount(agent_name="terminal", root_dir=root_dir)
+                        self.console.print(f"[bold cyan]✅ Filesystem mounted at: {root_dir}[/]")
+                        break
+                    else:
+                        self.console.print("[red]Path cannot be empty. Try again.[/red]")
+                        continue
+
             except KeyboardInterrupt:
                 sys.exit(0)
             except Exception as e:

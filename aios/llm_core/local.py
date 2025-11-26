@@ -155,7 +155,7 @@ class VLLMLocalBackend:
         self.device = device
         self.max_gpu_memory = max_gpu_memory
         # self.hostname = hostname
-        self.hostname = "http://localhost:8001"
+        self.hostname = "http://localhost:8000"
 
         # If a hostname is given, then this vLLM instance is hosted as a web server.
         # Therefore, do not start the AIOS-based vLLM instance.

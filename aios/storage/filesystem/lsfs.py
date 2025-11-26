@@ -842,11 +842,23 @@ class LSFS:
             return "Directory exists."
         except Exception as e: return f"Error creating directory: {str(e)}"
             
+    # def sto_mount(self, collection_name: str, root_dir: str) -> str:
+    #     try:
+    #         self.vector_db.build_database(root_dir)
+    #         return f"Mounted at {root_dir}"
+    #     except Exception as e: return f"Error mounting: {str(e)}"
+
     def sto_mount(self, collection_name: str, root_dir: str) -> str:
         try:
+            collection = self.vector_db.add_or_get_collection(collection_name)
+            assert collection is not None, f"Collection {collection_name} not found"
             self.vector_db.build_database(root_dir)
-            return f"Mounted at {root_dir}"
-        except Exception as e: return f"Error mounting: {str(e)}"
+            response = f"File system mounted successfully for agent: {collection_name}"
+            return response
+        
+        except Exception as e:
+            response = f"Error mounting file system: {str(e)}"
+            return response
             
     def sto_write(self, file_path: str, content: str, collection_name: str = None) -> str:
         lock = self.get_file_lock(file_path)

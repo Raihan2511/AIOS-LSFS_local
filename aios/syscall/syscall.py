@@ -240,50 +240,109 @@ class SyscallExecutor:
         # global_llm_req_queue_add_message(syscall)
         return self._execute_syscall(agent_name, query)
 
-    def execute_file_operation(self, agent_name: str, query: LLMQuery) -> str:
-        """
-        Execute a file system operation using LLM parsing.
+    # def execute_file_operation(self, agent_name: str, query: LLMQuery) -> str:
+    #     """
+    #     Execute a file system operation using LLM parsing.
         
-        Args:
-            agent_name: Name of the agent making the request
-            query: LLM query containing file operation instructions
+    #     Args:
+    #         agent_name: Name of the agent making the request
+    #         query: LLM query containing file operation instructions
             
-        Returns:
-            String containing operation summary
+    #     Returns:
+    #         String containing operation summary
             
-        Example:
-            ```python
-            query = LLMQuery(
-                messages=[{"role": "user", "content": "Create a file named test.txt"}],
-                action_type="operate_file"
-            )
-            result = executor.execute_file_operation("agent_1", query)
-            ```        """
-        # Parse file system operation
-        system_prompt = "You are a parser for parsing file system operations. Your task is to parse the instructions and return the file system operation call."
+    #     Example:
+    #         ```python
+    #         query = LLMQuery(
+    #             messages=[{"role": "user", "content": "Create a file named test.txt"}],
+    #             action_type="operate_file"
+    #         )
+    #         result = executor.execute_file_operation("agent_1", query)
+    #         ```        """
+    #     # Parse file system operation
+    #     system_prompt = "You are a parser for parsing file system operations. Your task is to parse the instructions and return the file system operation call."
+    #     query.messages = [{"role": "system", "content": system_prompt}] + query.messages
+    #     query.tools = storage_syscalls
+        
+        
+    #     # parser_response = self.execute_llm_syscall(agent_name, query)["response"]
+    #     # file_operations = parser_response.tool_calls
+        
+    #     # # breakpoint()
+        
+    #     # operation_summaries = []
+    #     # ...
+    #     result = self.execute_llm_syscall(agent_name, query)
+    #     parser_response = result["response"]
+        
+    #     # --- SAFETY FIX: Check if tool_calls exists ---
+    #     if not parser_response or not parser_response.tool_calls:
+    #         # If the AI just talked (e.g. "I cannot do that"), return the text directly
+    #         return parser_response.response_message if parser_response else "Error: The AI could not determine which file operation to perform."
+
+    #     file_operations = parser_response.tool_calls
+        
+    #     operation_summaries = []
+    #     # ...
+        
+    #     # Execute each file operation
+    #     for operation in file_operations:
+    #         storage_query = StorageQuery(
+    #             operation_type=operation.get("name"),
+    #             params=operation.get("parameters")
+    #         )
+            
+    #         # breakpoint()
+    #         storage_response = self.execute_storage_syscall(agent_name, storage_query)
+            
+    #         # Summarize operation result
+    #         summary_query = LLMQuery(
+    #             messages=[{
+    #                 "role": "user",
+    #                 "content": f"Tell me what you have done from {storage_response} with a friendly tone. "
+    #                           f"Try to be concise and maintain the key information including file name, file path, etc"
+    #             }],
+    #             action_type="chat"
+    #         )
+    #         summary = self.execute_llm_syscall(agent_name, summary_query)["response"].response_message
+    #         operation_summaries.append(summary)
+        
+    #     # Generate final summary
+    #     final_query = LLMQuery(
+    #         messages=[{
+    #             "role": "user",
+    #             "content": f"Tell me what you have done from {json.dumps(operation_summaries)} with a friendly tone. "
+    #                       f"Try to be concise and maintain the key information including file name, file path, etc"
+    #         }],
+    #         action_type="chat"
+    #     )
+        
+    #     return self.execute_llm_syscall(agent_name, final_query)["response"].response_message
+    def execute_file_operation(self, agent_name: str, query: LLMQuery) -> str:
+        # --- FIX: STRICTER SYSTEM PROMPT ---
+        # We explicitly tell the AI to NEVER output raw code, only tools.
+        system_prompt = (
+            "You are a precise file system agent. You must ONLY return a JSON tool call to execute the user's request. "
+            "Do not output raw text, explanations, or markdown code blocks. "
+            "If the user asks to write code, you MUST put that code inside the 'content' parameter of the 'write' tool."
+        )
+        
         query.messages = [{"role": "system", "content": system_prompt}] + query.messages
         query.tools = storage_syscalls
         
-        
-        # parser_response = self.execute_llm_syscall(agent_name, query)["response"]
-        # file_operations = parser_response.tool_calls
-        
-        # # breakpoint()
-        
-        # operation_summaries = []
-        # ...
+        # Execute the LLM Call
         result = self.execute_llm_syscall(agent_name, query)
         parser_response = result["response"]
         
-        # --- SAFETY FIX: Check if tool_calls exists ---
+        # --- SAFETY FIX: Handle Missing Tools Gracefully ---
         if not parser_response or not parser_response.tool_calls:
             # If the AI just talked (e.g. "I cannot do that"), return the text directly
+            # This prevents the "Expecting value..." crash
             return parser_response.response_message if parser_response else "Error: The AI could not determine which file operation to perform."
 
         file_operations = parser_response.tool_calls
         
         operation_summaries = []
-        # ...
         
         # Execute each file operation
         for operation in file_operations:
@@ -292,7 +351,6 @@ class SyscallExecutor:
                 params=operation.get("parameters")
             )
             
-            # breakpoint()
             storage_response = self.execute_storage_syscall(agent_name, storage_query)
             
             # Summarize operation result
@@ -300,7 +358,7 @@ class SyscallExecutor:
                 messages=[{
                     "role": "user",
                     "content": f"Tell me what you have done from {storage_response} with a friendly tone. "
-                              f"Try to be concise and maintain the key information including file name, file path, etc"
+                               f"Try to be concise and maintain the key information including file name, file path, etc"
                 }],
                 action_type="chat"
             )
@@ -318,7 +376,7 @@ class SyscallExecutor:
         )
         
         return self.execute_llm_syscall(agent_name, final_query)["response"].response_message
-
+    
     def execute_request(self, agent_name: str, query: Any) -> Dict[str, Any]:
         """
         Execute a request based on its type.

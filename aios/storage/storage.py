@@ -14,8 +14,8 @@ class StorageManager:
     def __init__(self, root_dir, use_vector_db=True, filesystem_type="lsfs"):
         self.use_vector_db = use_vector_db
         self.filesystem_type = filesystem_type
-        # self.root_dir = root_dir
-        self.root_dir = os.path.abspath(root_dir)
+        self.root_dir = root_dir
+        # self.root_dir = os.path.abspath(root_dir)
         os.makedirs(self.root_dir, exist_ok=True)
         if filesystem_type == "lsfs":
             self.filesystem = LSFS(root_dir, use_vector_db)
