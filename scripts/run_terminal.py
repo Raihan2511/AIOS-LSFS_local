@@ -62,7 +62,7 @@ class AIOSTerminal:
             ai_table.add_column("What it does", style="dim")
 
             # Core Features
-            ai_table.add_row("Code Gen", "Create a python script named calc.py that adds two numbers", "Creates & Writes in one step")
+            ai_table.add_row("Code Gen", "Create a file named filename.txt with content HELLO", "Creates & Writes in one step")
             ai_table.add_row("Write Content", "Write a list of fruits into shopping.txt", "Writes text to file")
             ai_table.add_row("Read/Analyze", "Read calc.py and explain the code", "Reads disk & summarizes")
             ai_table.add_row("List (AI)", "List all files in the current folder", "AI-driven directory scan")
