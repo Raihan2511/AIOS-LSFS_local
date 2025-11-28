@@ -318,6 +318,7 @@ class SyscallExecutor:
     #     )
         
     #     return self.execute_llm_syscall(agent_name, final_query)["response"].response_message
+    
     def execute_file_operation(self, agent_name: str, query: LLMQuery) -> str:
         # --- FIX: STRICTER SYSTEM PROMPT ---
         # We explicitly tell the AI to NEVER output raw code, only tools.
